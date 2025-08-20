@@ -12,3 +12,4 @@ C:\Users\abody\OneDrive\Desktop\exam#02\exam#02\obj\Debug\net9.0\refint\exam#02.
 C:\Users\abody\OneDrive\Desktop\exam#02\exam#02\obj\Debug\net9.0\exam#02.pdb
 C:\Users\abody\OneDrive\Desktop\exam#02\exam#02\obj\Debug\net9.0\exam#02.genruntimeconfig.cache
 C:\Users\abody\OneDrive\Desktop\exam#02\exam#02\obj\Debug\net9.0\ref\exam#02.dll
+C:\Users\abody\OneDrive\Desktop\exam#02\exam#02\obj\Debug\net9.0\exam#02.sourcelink.json

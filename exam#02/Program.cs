@@ -1,208 +1,213 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace ExaminationSystem
+// -------------------------- Answer Class --------------------------
+public class Answer : ICloneable
 {
-    public class Answer : ICloneable
+    public int AnswerId { get; set; }
+    public string AnswerText { get; set; }
+
+    public Answer(int id, string text)
     {
-        public int AnswerId { get; set; }
-        public string AnswerText { get; set; }
-
-        public Answer() { }
-        public Answer(int id, string text)
-        {
-            AnswerId = id;
-            AnswerText = text;
-        }
-
-        public object Clone()
-        {
-            return new Answer(this.AnswerId, this.AnswerText);
-        }
-
-        public override string ToString()
-        {
-            return $"{AnswerId}. {AnswerText}";
-        }
+        AnswerId = id;
+        AnswerText = text;
     }
 
-    public abstract class Question : ICloneable, IComparable<Question>
+    public object Clone()
     {
-        public string Header { get; set; }
-        public string Body { get; set; }
-        public double Mark { get; set; }
-        public List<Answer> AnswerList { get; set; }
-        public Answer RightAnswer { get; set; }
+        return new Answer(AnswerId, AnswerText);
+    }
 
-        protected Question(string header, string body, double mark)
+    public override string ToString()
+    {
+        return $"{AnswerId}. {AnswerText}";
+    }
+}
+
+// ------------------------------ Base Question ------------------------------
+public abstract class Question : ICloneable, IComparable<Question>
+{
+    public string Header { get; set; }
+    public string Body { get; set; }
+    public int Mark { get; set; }
+    public List<Answer> AnswerList { get; set; }
+    public Answer RightAnswer { get; set; }
+
+    public Question(string header, string body, int mark)
+    {
+        Header = header;
+        Body = body;
+        Mark = mark;
+        AnswerList = new List<Answer>();
+    }
+
+    public abstract void Show();
+
+    public object Clone()
+    {
+        return this.MemberwiseClone();
+    }
+
+    public int CompareTo(Question other)
+    {
+        return this.Mark.CompareTo(other.Mark);
+    }
+
+    public override string ToString()
+    {
+        return $"{Header}: {Body} (Mark: {Mark})";
+    }
+}
+
+// ----------------------------- True/False Question -----------------------------
+public class TrueFalseQuestion : Question
+{
+    public TrueFalseQuestion(string body, int mark)
+        : base("True/False", body, mark)
+    {
+        AnswerList.Add(new Answer(1, "True"));
+        AnswerList.Add(new Answer(2, "False"));
+    }
+
+    public override void Show()
+    {
+        Console.WriteLine(ToString());
+        foreach (var ans in AnswerList)
+            Console.WriteLine(ans);
+    }
+}
+
+//--------------------- MCQ Question --------------------- 
+public class MCQQuestion : Question
+{
+    public MCQQuestion(string body, int mark, List<Answer> answers)
+        : base("MCQ", body, mark)
+    {
+        AnswerList.AddRange(answers);
+    }
+
+    public override void Show()
+    {
+        Console.WriteLine(ToString());
+        foreach (var ans in AnswerList)
+            Console.WriteLine(ans);
+    }
+}
+
+// ------------------------ Base Exam------------------------
+public abstract class Exam
+{
+    public int Time { get; set; }
+    public int NumberOfQuestions { get; set; }
+    public List<Question> Questions { get; set; }
+
+    public Exam(int time, int numberOfQuestions)
+    {
+        Time = time;
+        NumberOfQuestions = numberOfQuestions;
+        Questions = new List<Question>();
+    }
+
+    public abstract void ShowExam();
+}
+
+// ----------------------- Final Exam -----------------------
+public class FinalExam : Exam
+{
+    public FinalExam(int time, int numberOfQuestions)
+        : base(time, numberOfQuestions) { }
+
+    public override void ShowExam()
+    {
+        Console.WriteLine("=== Final Exam ===");
+        int grade = 0;
+
+        foreach (var q in Questions)
         {
-            Header = header;
-            Body = body;
-            Mark = mark;
-            AnswerList = new List<Answer>();
-        }
+            q.Show();
+            Console.Write("Enter your answer: ");
+            int userAnswer = int.Parse(Console.ReadLine());
 
-        public abstract void ShowQuestion();
-
-        public object Clone()
-        {
-            Question copy = (Question)this.MemberwiseClone();
-            copy.AnswerList = new List<Answer>();
-            foreach (var ans in AnswerList)
+            if (q.RightAnswer != null && q.RightAnswer.AnswerId == userAnswer)
             {
-                copy.AnswerList.Add((Answer)ans.Clone());
-            }
-            return copy;
-        }
-
-        public int CompareTo(Question other)
-        {
-            return Mark.CompareTo(other.Mark);
-        }
-
-        public override string ToString()
-        {
-            return $"{Header} - {Body} (Mark: {Mark})";
-        }
-    }
-
-    public class TrueFalseQuestion : Question
-    {
-        public TrueFalseQuestion(string body, double mark, Answer rightAnswer)
-            : base("True/False Question", body, mark)
-        {
-            AnswerList.Add(new Answer(1, "True"));
-            AnswerList.Add(new Answer(2, "False"));
-            RightAnswer = rightAnswer;
-        }
-
-        public override void ShowQuestion()
-        {
-            Console.WriteLine(ToString());
-            foreach (var ans in AnswerList)
-            {
-                Console.WriteLine(ans);
-            }
-        }
-    }
-
-    public class MCQQuestion : Question
-    {
-        public MCQQuestion(string body, double mark, List<Answer> answers, Answer rightAnswer)
-            : base("MCQ Question", body, mark)
-        {
-            AnswerList = answers;
-            RightAnswer = rightAnswer;
-        }
-
-        public override void ShowQuestion()
-        {
-            Console.WriteLine(ToString());
-            foreach (var ans in AnswerList)
-            {
-                Console.WriteLine(ans);
-            }
-        }
-    }
-
-    public abstract class Exam
-    {
-        public int Time { get; set; }
-        public int NumberOfQuestions { get; set; }
-        public List<Question> Questions { get; set; }
-
-        protected Exam(int time, int numberOfQuestions)
-        {
-            Time = time;
-            NumberOfQuestions = numberOfQuestions;
-            Questions = new List<Question>();
-        }
-
-        public abstract void ShowExam();
-    }
-    public class PracticalExam : Exam
-    {
-        public PracticalExam(int time, int numberOfQuestions)
-            : base(time, numberOfQuestions) { }
-
-        public override void ShowExam()
-        {
-            Console.WriteLine("---- Practical Exam ----");
-            foreach (var q in Questions)
-            {
-                q.ShowQuestion();
-                Console.WriteLine($"Correct Answer: {q.RightAnswer}\n");
+                grade += q.Mark;
             }
         }
+
+        Console.WriteLine($"Your grade is {grade}/{Questions.Count * 10}");
     }
-    public class FinalExam : Exam
+}
+
+// ------------------------ Practical Exam ------------------------
+public class PracticalExam : Exam
+{
+    public PracticalExam(int time, int numberOfQuestions)
+        : base(time, numberOfQuestions) { }
+
+    public override void ShowExam()
     {
-        public FinalExam(int time, int numberOfQuestions)
-            : base(time, numberOfQuestions) { }
+        Console.WriteLine("=== Practical Exam ===");
 
-        public override void ShowExam()
+        foreach (var q in Questions)
         {
-            Console.WriteLine("---- Final Exam ----");
-            double totalGrade = 0;
-            foreach (var q in Questions)
-            {
-                q.ShowQuestion();
-                Console.Write("Enter your Answer Id: ");
-                int userAns = int.Parse(Console.ReadLine());
-                if (q.RightAnswer.AnswerId == userAns)
-                {
-                    totalGrade += q.Mark;
-                }
-            }
-            Console.WriteLine($"Your Grade: {totalGrade} / {Questions.Count}");
-        }
-    }
-    public class Subject
-    {
-        public int SubjectId { get; set; }
-        public string SubjectName { get; set; }
-        public Exam Exam { get; set; }
+            q.Show();
+            Console.Write("Enter your answer: ");
+            int userAnswer = int.Parse(Console.ReadLine());
 
-        public Subject(int id, string name)
-        {
-            SubjectId = id;
-            SubjectName = name;
-        }
-
-        public void CreateExam(Exam exam)
-        {
-            Exam = exam;
-        }
-
-        public override string ToString()
-        {
-            return $"Subject: {SubjectId} - {SubjectName}";
+            Console.WriteLine($"Correct Answer: {q.RightAnswer.AnswerText}\n");
         }
     }
+}
 
-    class Program
+// ------------------- Subject -------------------
+public class Subject
+{
+    public int SubjectId { get; set; }
+    public string SubjectName { get; set; }
+    public Exam Exam { get; set; }
+
+    public Subject(int id, string name)
     {
-        static void Main(string[] args)
+        SubjectId = id;
+        SubjectName = name;
+    }
+
+    public void CreateExam(Exam exam)
+    {
+        Exam = exam;
+    }
+
+    public override string ToString()
+    {
+        return $"Subject: {SubjectName} (ID: {SubjectId})";
+    }
+}
+
+// -------------------------- Program Main --------------------------
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Subject subj = new Subject(1, "Programming");
+
+        FinalExam exam = new FinalExam(60, 2);
+        var q1 = new TrueFalseQuestion("C# is an object-oriented language?", 10);
+        q1.RightAnswer = q1.AnswerList[0]; // True
+        exam.Questions.Add(q1);
+
+        var answers = new List<Answer>
         {
-            Subject subj = new Subject(1, "OOP");
+            new Answer(1, "1995"),
+            new Answer(2, "2000"),
+            new Answer(3, "2002")
+        };
+        var q2 = new MCQQuestion("C# was released in?", 10, answers);
+        q2.RightAnswer = answers[2];
+        exam.Questions.Add(q2);
 
-            Exam exam = new FinalExam(60, 2);
+        subj.CreateExam(exam);
 
-            exam.Questions.Add(new TrueFalseQuestion("C# is Object Oriented?", 5, new Answer(1, "True")));
-
-            var mcqAnswers = new List<Answer>
-            {
-                new Answer(1, "Encapsulation"),
-                new Answer(2, "Abstraction"),
-                new Answer(3, "Polymorphism"),
-                new Answer(4, "All of the above")
-            };
-            exam.Questions.Add(new MCQQuestion("Which is OOP concept?", 5, mcqAnswers, mcqAnswers[3]));
-
-            subj.CreateExam(exam);
-
-            Console.WriteLine(subj);
-            subj.Exam.ShowExam();
-        }
+        Console.WriteLine(subj);
+        subj.Exam.ShowExam();
     }
 }
