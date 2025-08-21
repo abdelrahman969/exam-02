@@ -1,213 +1,344 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 
-// -------------------------- Answer Class --------------------------
-public class Answer : ICloneable
+public class Answer
 {
     public int AnswerId { get; set; }
     public string AnswerText { get; set; }
 
-    public Answer(int id, string text)
+    public Answer(int answerId, string answerText)
     {
-        AnswerId = id;
-        AnswerText = text;
+        AnswerId = answerId;
+        AnswerText = answerText;
     }
 
-    public object Clone()
-    {
-        return new Answer(AnswerId, AnswerText);
-    }
-
-    public override string ToString()
-    {
-        return $"{AnswerId}. {AnswerText}";
-    }
+    public override string ToString() => $"[{AnswerId}] {AnswerText}";
 }
 
-// ------------------------------ Base Question ------------------------------
 public abstract class Question : ICloneable, IComparable<Question>
 {
-    public string Header { get; set; }
+    public string Header { get; set; } 
     public string Body { get; set; }
     public int Mark { get; set; }
-    public List<Answer> AnswerList { get; set; }
-    public Answer RightAnswer { get; set; }
+    public Answer[] AnswerList { get; set; }
+    public Answer CorrectAnswer { get; set; }
 
-    public Question(string header, string body, int mark)
+    protected Question(string header, string body, int mark, Answer[] answers, Answer correctAnswer)
     {
         Header = header;
         Body = body;
         Mark = mark;
-        AnswerList = new List<Answer>();
+        AnswerList = answers;
+        CorrectAnswer = correctAnswer;
     }
 
-    public abstract void Show();
+    public object Clone() => MemberwiseClone();
 
-    public object Clone()
-    {
-        return this.MemberwiseClone();
-    }
+    public int CompareTo(Question other) => Mark.CompareTo(other.Mark);
 
-    public int CompareTo(Question other)
-    {
-        return this.Mark.CompareTo(other.Mark);
-    }
+    public override string ToString() => $"{Body}\nMark: {Mark}";
 
-    public override string ToString()
-    {
-        return $"{Header}: {Body} (Mark: {Mark})";
-    }
+    public abstract void DisplayQuestion();
 }
 
-// ----------------------------- True/False Question -----------------------------
 public class TrueFalseQuestion : Question
 {
-    public TrueFalseQuestion(string body, int mark)
-        : base("True/False", body, mark)
+    public TrueFalseQuestion(string header, string body, int mark, Answer[] answers, Answer correctAnswer)
+        : base(header, body, mark, answers, correctAnswer)
     {
-        AnswerList.Add(new Answer(1, "True"));
-        AnswerList.Add(new Answer(2, "False"));
     }
 
-    public override void Show()
+    public override void DisplayQuestion()
     {
-        Console.WriteLine(ToString());
-        foreach (var ans in AnswerList)
-            Console.WriteLine(ans);
+        Console.WriteLine($"{ToString()}\nAnswers:");
+        foreach (var answer in AnswerList)
+        {
+            Console.WriteLine(answer);
+        }
     }
 }
 
-//--------------------- MCQ Question --------------------- 
 public class MCQQuestion : Question
 {
-    public MCQQuestion(string body, int mark, List<Answer> answers)
-        : base("MCQ", body, mark)
+    public MCQQuestion(string header, string body, int mark, Answer[] answers, Answer correctAnswer)
+        : base(header, body, mark, answers, correctAnswer)
     {
-        AnswerList.AddRange(answers);
     }
 
-    public override void Show()
+    public override void DisplayQuestion()
     {
-        Console.WriteLine(ToString());
-        foreach (var ans in AnswerList)
-            Console.WriteLine(ans);
+        Console.WriteLine($"{ToString()}\nAnswers:");
+        foreach (var answer in AnswerList)
+        {
+            Console.WriteLine(answer);
+        }
     }
 }
 
-// ------------------------ Base Exam------------------------
 public abstract class Exam
 {
-    public int Time { get; set; }
+    public TimeSpan Time { get; set; }
     public int NumberOfQuestions { get; set; }
-    public List<Question> Questions { get; set; }
+    public Question[] Questions { get; set; }
 
-    public Exam(int time, int numberOfQuestions)
+    protected Exam(TimeSpan time, int numberOfQuestions)
     {
         Time = time;
         NumberOfQuestions = numberOfQuestions;
-        Questions = new List<Question>();
+        Questions = new Question[numberOfQuestions];
     }
 
     public abstract void ShowExam();
 }
 
-// ----------------------- Final Exam -----------------------
 public class FinalExam : Exam
 {
-    public FinalExam(int time, int numberOfQuestions)
-        : base(time, numberOfQuestions) { }
+    public FinalExam(TimeSpan time, int numberOfQuestions) : base(time, numberOfQuestions)
+    {
+    }
 
     public override void ShowExam()
     {
-        Console.WriteLine("=== Final Exam ===");
-        int grade = 0;
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        int totalMarks = 0;
+        int score = 0;
+        List<Answer> userAnswers = new List<Answer>();
 
-        foreach (var q in Questions)
+        Console.WriteLine("\nFinal Exam:");
+        for (int i = 0; i < NumberOfQuestions; i++)
         {
-            q.Show();
-            Console.Write("Enter your answer: ");
-            int userAnswer = int.Parse(Console.ReadLine());
+            Console.WriteLine($"\nQuestion {i + 1}:");
+            Questions[i].DisplayQuestion();
+            Console.Write("Enter answer ID: ");
+            string input = Console.ReadLine();
+            Answer userAnswer = null;
 
-            if (q.RightAnswer != null && q.RightAnswer.AnswerId == userAnswer)
+            if (int.TryParse(input, out int userAnswerId))
             {
-                grade += q.Mark;
+                userAnswer = Questions[i].AnswerList.FirstOrDefault(a => a.AnswerId == userAnswerId);
+                if (userAnswer != null && Questions[i].CorrectAnswer.AnswerId == userAnswerId)
+                {
+                    score += Questions[i].Mark;
+                }
             }
+            userAnswers.Add(userAnswer);
+            totalMarks += Questions[i].Mark;
         }
 
-        Console.WriteLine($"Your grade is {grade}/{Questions.Count * 10}");
+        stopwatch.Stop();
+        TimeSpan timeTaken = stopwatch.Elapsed;
+
+        Console.WriteLine("\nFinal Exam Results:");
+        Console.WriteLine($"Questions: {NumberOfQuestions}");
+        Console.WriteLine($"Your Score: {score}/{totalMarks}");
+        Console.WriteLine($"Time Taken: {timeTaken.Minutes} minutes and {timeTaken.Seconds} seconds");
+
+        Console.WriteLine("\nAnswer Review:");
+        for (int i = 0; i < NumberOfQuestions; i++)
+        {
+            Console.WriteLine($"\nQuestion {i + 1}: {Questions[i].Body}");
+            Console.WriteLine($"Correct Answer: {Questions[i].CorrectAnswer}");
+            Console.WriteLine($"Your Answer: {(userAnswers[i] != null ? userAnswers[i].ToString() : "Invalid or no answer provided")}");
+        }
     }
 }
 
-// ------------------------ Practical Exam ------------------------
 public class PracticalExam : Exam
 {
-    public PracticalExam(int time, int numberOfQuestions)
-        : base(time, numberOfQuestions) { }
+    public PracticalExam(TimeSpan time, int numberOfQuestions) : base(time, numberOfQuestions)
+    {
+    }
 
     public override void ShowExam()
     {
-        Console.WriteLine("=== Practical Exam ===");
-
-        foreach (var q in Questions)
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        Console.WriteLine("\nPractical Exam:");
+        for (int i = 0; i < NumberOfQuestions; i++)
         {
-            q.Show();
-            Console.Write("Enter your answer: ");
-            int userAnswer = int.Parse(Console.ReadLine());
-
-            Console.WriteLine($"Correct Answer: {q.RightAnswer.AnswerText}\n");
+            Console.WriteLine($"\nQuestion {i + 1}:");
+            Questions[i].DisplayQuestion();
+            Console.Write("Enter answer ID: ");
+            Console.ReadLine();
+            Console.WriteLine($"Correct Answer: {Questions[i].CorrectAnswer}\n");
         }
+
+        stopwatch.Stop();
+        TimeSpan timeTaken = stopwatch.Elapsed;
+        Console.WriteLine($"\nTime Taken: {timeTaken.Minutes} minutes and {timeTaken.Seconds} seconds");
     }
 }
-
-// ------------------- Subject -------------------
 public class Subject
 {
     public int SubjectId { get; set; }
     public string SubjectName { get; set; }
     public Exam Exam { get; set; }
 
-    public Subject(int id, string name)
+    public Subject(int subjectId, string subjectName)
     {
-        SubjectId = id;
-        SubjectName = name;
+        SubjectId = subjectId;
+        SubjectName = subjectName;
     }
 
     public void CreateExam(Exam exam)
     {
         Exam = exam;
     }
-
-    public override string ToString()
-    {
-        return $"Subject: {SubjectName} (ID: {SubjectId})";
-    }
 }
 
-// -------------------------- Program Main --------------------------
-public class Program
+class Program
 {
-    public static void Main(string[] args)
+    static void Main(string[] args)
     {
-        Subject subj = new Subject(1, "Programming");
+        Subject programming = new Subject(1, "Programming Fundamentals");
 
-        FinalExam exam = new FinalExam(60, 2);
-        var q1 = new TrueFalseQuestion("C# is an object-oriented language?", 10);
-        q1.RightAnswer = q1.AnswerList[0]; // True
-        exam.Questions.Add(q1);
+        Console.WriteLine("Please select the type of exam:");
+        Console.WriteLine("[1] Final");
+        Console.WriteLine("[2] Practical");
+        Console.Write("Enter the number (1 or 2): ");
 
-        var answers = new List<Answer>
+        int examTypeChoice;
+        while (!int.TryParse(Console.ReadLine(), out examTypeChoice) || (examTypeChoice != 1 && examTypeChoice != 2))
         {
-            new Answer(1, "1995"),
-            new Answer(2, "2000"),
-            new Answer(3, "2002")
-        };
-        var q2 = new MCQQuestion("C# was released in?", 10, answers);
-        q2.RightAnswer = answers[2];
-        exam.Questions.Add(q2);
+            Console.WriteLine("Invalid choice. Please enter 1 for Final or 2 for Practical.");
+            Console.Write("Enter the number (1 or 2): ");
+        }
 
-        subj.CreateExam(exam);
+        bool isFinal = examTypeChoice == 1;
 
-        Console.WriteLine(subj);
-        subj.Exam.ShowExam();
+        int examMinutes;
+        do
+        {
+            Console.Write("Please enter the exam time in minutes (30-180): ");
+            if (!int.TryParse(Console.ReadLine(), out examMinutes) || examMinutes < 30 || examMinutes > 180)
+            {
+                Console.WriteLine("Invalid time. Must be between 30 and 180 minutes.");
+            }
+        } while (examMinutes < 30 || examMinutes > 180);
+
+        TimeSpan examTime = TimeSpan.FromMinutes(examMinutes);
+
+        int numQuestions;
+        do
+        {
+            Console.Write("Please enter the number of questions: ");
+            if (!int.TryParse(Console.ReadLine(), out numQuestions) || numQuestions <= 0)
+            {
+                Console.WriteLine("Invalid number. Must be positive integer.");
+            }
+        } while (numQuestions <= 0);
+
+        Exam exam = isFinal ? new FinalExam(examTime, numQuestions) : new PracticalExam(examTime, numQuestions);
+
+        for (int i = 0; i < numQuestions; i++)
+        {
+            Console.WriteLine($"\nQuestion {i + 1}:");
+
+            string qType;
+            if (!isFinal)
+            {
+                qType = "mcq";
+                Console.WriteLine("Question type: MCQ (only for Practical)");
+            }
+            else
+            {
+                Console.WriteLine("Please select question type:");
+                Console.WriteLine("[1] True/False");
+                Console.WriteLine("[2] MCQ");
+                Console.Write("Enter the number (1 or 2): ");
+
+                int qTypeChoice;
+                while (!int.TryParse(Console.ReadLine(), out qTypeChoice) || (qTypeChoice != 1 && qTypeChoice != 2))
+                {
+                    Console.WriteLine("Invalid choice. Please enter 1 for True/False or 2 for MCQ.");
+                    Console.Write("Enter the number (1 or 2): ");
+                }
+                qType = qTypeChoice == 1 ? "true/false" : "mcq";
+            }
+
+
+            Console.Write("Please enter the body of the question: ");
+            string body = Console.ReadLine();
+
+            int mark;
+            do
+            {
+                Console.Write("How many marks for this question: ");
+                if (!int.TryParse(Console.ReadLine(), out mark) || mark <= 0)
+                {
+                    Console.WriteLine("Invalid mark. Must be positive integer.");
+                }
+            } while (mark <= 0);
+
+            Answer[] answers;
+            if (qType == "true/false")
+            {
+                answers = new Answer[]
+                {
+                    new Answer(1, "True"),
+                    new Answer(2, "False")
+                };
+            }
+            else 
+            {
+                List<Answer> optionList = new List<Answer>();
+                for (int j = 1; j <= 3; j++)
+                {
+                    Console.Write($"Please enter option {j}: ");
+                    string optionText = Console.ReadLine();
+                    optionList.Add(new Answer(j, optionText));
+                }
+                answers = optionList.ToArray();
+            }
+
+            Console.WriteLine("Options:");
+            foreach (var ans in answers)
+            {
+                Console.WriteLine(ans);
+            }
+
+            int correctId;
+            do
+            {
+                Console.Write("Please enter the correct answer ID: ");
+                if (!int.TryParse(Console.ReadLine(), out correctId) || !answers.Any(a => a.AnswerId == correctId))
+                {
+                    Console.WriteLine("Invalid ID. Must be one of the option IDs.");
+                }
+            } while (!answers.Any(a => a.AnswerId == correctId));
+
+            Answer correctAnswer = answers.First(a => a.AnswerId == correctId);
+
+            Question question = qType == "true/false"
+                ? new TrueFalseQuestion(header, body, mark, answers, correctAnswer)
+                : new MCQQuestion(header, body, mark, answers, correctAnswer);
+
+            exam.Questions[i] = question;
+        }
+
+        programming.CreateExam(exam);
+
+        Console.WriteLine("\nDo you want to start the exam?");
+        Console.WriteLine("[1] Yes");
+        Console.WriteLine("[2] No");
+        Console.Write("Enter the number (1 or 2): ");
+
+        int startExamChoice;
+        while (!int.TryParse(Console.ReadLine(), out startExamChoice) || (startExamChoice != 1 && startExamChoice != 2))
+        {
+            Console.WriteLine("Invalid choice. Please enter 1 for Yes or 2 for No.");
+            Console.Write("Enter the number (1 or 2): ");
+        }
+
+        if (startExamChoice == 1)
+        {
+            programming.Exam.ShowExam();
+        }
+        else
+        {
+            Console.WriteLine("Exiting the program.");
+            return;
+        }
     }
 }
